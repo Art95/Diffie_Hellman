@@ -1,8 +1,9 @@
 package participants;
 
+import dhtree.DHTree;
 import messages.ClientJoinAnswerMessage;
-import messages.ClientJoinRequestMessage;
 import messages.KeysUpdateMessage;
+import util.ActionType;
 
 import java.util.Random;
 
@@ -20,7 +21,7 @@ public class Client {
     private long publicKey;
 
     private HierarchyTree hTree;
-    private LevelTree lTree;
+    private DHTree levelTree;
 
     public Client() {
         id = -1;
@@ -33,7 +34,7 @@ public class Client {
         publicKey = -1;
 
         hTree = null;
-        lTree = null;
+        levelTree = null;
     }
 
     public Client(int id, int levelInHierarchy) {
@@ -43,7 +44,7 @@ public class Client {
         generateParameters();
         generateKeys();
 
-        lTree = new LevelTree();
+        levelTree = new DHTree(this);
         hTree = new HierarchyTree();
     }
 
@@ -53,23 +54,50 @@ public class Client {
 
         setGroupParameters(groupInfo);
 
-        updateLevelTreeStructure();
-        updateLevelTreeKeys();
-        updateHierarchyTreeKeys();
+        updateLevelTreeStructure(this, ActionType.JOIN);
+        updateKeys(ActionType.JOIN);
 
         sendKeysUpdateMessage(group);
+    }
+
+    public void leaveGroup(Group group) {
+        sendGroupLeaveRequest(group);
+
+        generateParameters();
+        generateKeys();
+
+        levelTree = new DHTree(this);
     }
 
     public int getID() {
         return this.id;
     }
 
-    private Client sendGroupJoinRequest(Group group) {
-        ClientJoinRequestMessage clientInformation = new ClientJoinRequestMessage();
-        clientInformation.clientId = this.id;
-        clientInformation.levelInHierarchy = this.levelInHierarchy;
+    public int getLevelInHierarchy() {
+        return this.levelInHierarchy;
+    }
 
-        return group.receiveJoinRequest(clientInformation);
+    public long getPublicKey() {
+        return this.publicKey;
+    }
+
+    public void updateLevelTreeStructure(Client client, ActionType action) {
+        if (action == ActionType.JOIN)
+            levelTree.addClient(client);
+        else if (action == ActionType.LEAVE)
+            levelTree.removeClient(client);
+    }
+
+    public Client findSiblingClient(Client client) {
+        return levelTree.findSiblingClient(client);
+    }
+
+    private Client sendGroupJoinRequest(Group group) {
+        return group.receiveJoinRequest(this);
+    }
+
+    private void sendGroupLeaveRequest(Group group) {
+        group.receiveLeaveRequest(this);
     }
 
     private ClientJoinAnswerMessage sendClientJoinRequest(Client client) {
@@ -93,13 +121,13 @@ public class Client {
         updateMessage.levelInHierarchy = this.levelInHierarchy;
         updateMessage.changedBranchInformation = generateBranchInformation();
 
-        group.receiveKeysUpdateMessage(updateMessage);
+        group.receiveKeysUpdateRequest(updateMessage);
     }
 
     private void setGroupParameters(ClientJoinAnswerMessage parameters) {
         this.p = parameters.p;
         this.g = parameters.g;
-        this.lTree = new LevelTree(parameters.levelTreeInfo);
+        this.levelTree = new DHTree(parameters.levelTreeInfo);
         this.hTree = new HierarchyTree(parameters.hierarchyTreeInfo);
     }
 

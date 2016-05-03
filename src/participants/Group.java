@@ -1,6 +1,5 @@
 package participants;
 
-import messages.ClientJoinRequestMessage;
 import messages.KeysUpdateMessage;
 
 import java.util.HashMap;
@@ -16,18 +15,20 @@ public class Group {
         hierarchy = new HashMap<>();
     }
 
-    public Client receiveJoinRequest(ClientJoinRequestMessage message) {
-        HierarchyLevelGroup clientGroup = hierarchy.get(message.levelInHierarchy);
+    public Client receiveJoinRequest(Client new_client) {
+        HierarchyLevelGroup clientGroup = hierarchy.get(new_client.getLevelInHierarchy());
+        clientGroup.receiveJoinRequest(new_client);
+
         return clientGroup.getContactClient();
     }
 
-    public void receiveKeysUpdateMessage(KeysUpdateMessage message) {
-        HierarchyLevelGroup level = hierarchy.get(message.levelInHierarchy);
+    public void receiveLeaveRequest(Client leaving_client) {
+        HierarchyLevelGroup clientGroup = hierarchy.get(leaving_client.getLevelInHierarchy());
+        clientGroup.receiveLeaveRequest(leaving_client);
+    }
 
-        for (Client client : level.clients) {
-            if (client.getID() != message.clientId) {
-                client.updateKeys(message.changedBranchInformation);
-            }
-        }
+    public void receiveKeysUpdateRequest(KeysUpdateMessage message) {
+        HierarchyLevelGroup clientGroup = hierarchy.get(message.levelInHierarchy);
+        clientGroup.receiveKeysUpdateRequest(message);
     }
 }
