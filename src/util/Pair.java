@@ -1,10 +1,10 @@
-package utils;
+package util;
 
 /**
- * Created by Artem on 14.03.2016.
+ * Created by Artem on 03.05.2016.
  */
 
-public class Pair<A extends Comparable<A>, B extends Comparable<B>> implements Comparable<Pair<A, B>> {
+public class Pair<A, B> {
     private A first;
     private B second;
 
@@ -13,13 +13,6 @@ public class Pair<A extends Comparable<A>, B extends Comparable<B>> implements C
         this.first = first;
         this.second = second;
     }
-
-    /*public int hashCode() {
-        int hashFirst = first != null ? first.hashCode() : 0;
-        int hashSecond = second != null ? second.hashCode() : 0;
-
-        return (hashFirst + hashSecond) * hashSecond + hashFirst;
-    }*/
 
     @Override
     public boolean equals(Object other) {
@@ -57,29 +50,6 @@ public class Pair<A extends Comparable<A>, B extends Comparable<B>> implements C
     public void setSecond(B second) {
         this.second = second;
     }
-
-    @Override
-    public int compareTo(Pair<A, B> anotherPair) {
-        int compare = this.getFirst().compareTo(anotherPair.getFirst());
-
-        if (compare != 0) {
-            return compare;
-        } else {
-            return this.getSecond().compareTo(anotherPair.getSecond());
-        }
-    }
-
-    /*@Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Pair)) return false;
-
-        Pair<?, ?> pair = (Pair<?, ?>) o;
-
-        if (first != null ? !first.equals(pair.first) : pair.first != null) return false;
-        return second != null ? second.equals(pair.second) : pair.second == null;
-
-    }*/
 
     @Override
     public int hashCode() {
