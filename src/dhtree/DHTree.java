@@ -12,8 +12,8 @@ public class DHTree {
     private class DHNode {
         private int id;
 
-        private long secretKey;
-        private long publicKey;
+        private Long secretKey;
+        private Long publicKey;
 
         private DHNode parent, left, right;
 
@@ -21,8 +21,8 @@ public class DHTree {
 
         public DHNode() {
             id = -1;
-            secretKey = -1;
-            publicKey = -1;
+            secretKey = null;
+            publicKey = null;
 
             parent = null;
             left = null;
@@ -46,20 +46,35 @@ public class DHTree {
         public int hashCode() {
             return id;
         }
+
+        public void clear() {
+            client = null;
+
+            secretKey = null;
+            publicKey = null;
+        }
     }
 
     private DHNode root;
     private int height;
+
     private Map<DHNode, Client> nodesClients;
     private Map<Client, DHNode> clientsNodes;
+
     private int clientsNumber;
+
+    private Client masterClient;
 
     public DHTree() {
         root = null;
         height = 0;
+
         nodesClients = new HashMap<>();
         clientsNodes = new HashMap<>();
+
         clientsNumber = 0;
+
+        masterClient = null;
     }
 
     public DHTree(Client client) {
@@ -92,7 +107,7 @@ public class DHTree {
 
     public void removeClient(Client leaving_client) {
         if (root == null)
-            throw new NullPointerException("DHTree: root has not been initialized!");
+            throw new NullPointerException("DHTree: root = null!");
 
         if (!clientsNodes.containsKey(leaving_client))
             throw new IllegalArgumentException("DHTree: does not contain client " + leaving_client);
@@ -102,7 +117,30 @@ public class DHTree {
         nodesClients.put(holdingNode, null);
         clientsNodes.remove(leaving_client);
 
+        holdingNode.clear();
+
         --clientsNumber;
+    }
+    
+    public void updateKeys(Client client) {
+        if (root == null)
+            throw new NullPointerException("DHTree: root = null!");
+
+        if (!clientsNodes.containsKey(client))
+            throw new IllegalArgumentException("DHTree: Tree does not contain client + " + client);
+
+        DHNode clientNode = clientsNodes.get(client);
+
+        updateKeysInBranch(clientNode.parent);
+    }
+
+    public void updateKeys(BranchInformation branchInfo) {
+        DHNode sponsorNode = setChangedKeys(branchInfo);
+        DHNode masterClientNode = clientsNodes.get(masterClient);
+
+        DHNode lca = findLCA(sponsorNode, masterClientNode);
+
+        updateKeysInBranch(lca);
     }
 
     public Client findSiblingClient(Client client) {
@@ -168,6 +206,25 @@ public class DHTree {
         }
     }
 
+    public BranchInformation getBranchInformation(Client client) {
+        if (root == null)
+            throw new NullPointerException("DHTree: root = null!");
+
+        if (!clientsNodes.containsKey(client))
+            throw new IllegalArgumentException("DHTree: Tree does not contain client + " + client);
+
+        DHNode clientNode = clientsNodes.get(client);
+
+        return collectBranchInformation(clientNode);
+    }
+
+    public void setMasterClientKeys(Long secretKey, Long publicKey) {
+        DHNode masterClientNode = clientsNodes.get(masterClient);
+
+        masterClientNode.secretKey = secretKey;
+        masterClientNode.publicKey = publicKey;
+    }
+
     public void clear() {
         root = null;
 
@@ -176,6 +233,47 @@ public class DHTree {
 
         clientsNodes.clear();
         nodesClients.clear();
+    }
+
+    private DHNode setChangedKeys(BranchInformation branchInfo) {
+        Map<Integer, BranchNodeInformation> nodesInfo = branchInfo.getNodesInformation();
+        int sponsorNodeID = branchInfo.getBranchMasterClientNodeID();
+        DHNode current = null;
+        int currentNodeInfoID = sponsorNodeID;
+
+        for (DHNode node : nodesClients.keySet()) {
+            if (sponsorNodeID == node.id)
+                current = node;
+        }
+
+        DHNode sponsorNode = current;
+
+        while (current != null) {
+            current.publicKey = nodesInfo.get(currentNodeInfoID).publicKey;
+
+            currentNodeInfoID = nodesInfo.get(currentNodeInfoID).parentId;
+            current = current.parent;
+        }
+
+        return sponsorNode;
+    }
+
+    private BranchInformation collectBranchInformation(DHNode leaf) {
+        BranchInformation branchInfo = new BranchInformation();
+        DHNode currentNode = leaf;
+        int index = -1;
+
+        while (currentNode != root) {
+            int id = (currentNode.id > 0) ? currentNode.id : index--;
+
+            branchInfo.addNodeInfo(id, index, currentNode.publicKey);
+
+            currentNode = currentNode.parent;
+        }
+
+        branchInfo.addNodeInfo(0, 0, root.publicKey);
+
+        return branchInfo;
     }
 
     private int getLCALevel(DHNode leaf1, DHNode leaf2) {
@@ -193,6 +291,64 @@ public class DHTree {
         }
 
         return level;
+    }
+
+    private DHNode findLCA(DHNode node1, DHNode node2) {
+        DHNode p1 = node1;
+        DHNode p2 = node2;
+
+        if (p1.client == null && p2.client == null)  { // nodes are not leafs
+            putPointersOnEqualHeight(p1, p2);
+        }
+
+        while (p1 != p2) {
+            p1 = p1.parent;
+            p2 = p2.parent;
+        }
+
+        return p1;
+    }
+
+    private void putPointersOnEqualHeight(DHNode p1, DHNode p2) {
+        int p1_depth = findDepth(p1);
+        int p2_depth = findDepth(p2);
+
+        if (p1_depth == p2_depth)
+            return;
+
+        if (p1_depth > p2_depth)
+            movePointerUp(p1, p1_depth - p2_depth);
+        else
+            movePointerUp(p2, p2_depth - p1_depth);
+    }
+
+    private int findDepth(DHNode node) {
+        int depth = findDepth(root, node, 0);
+
+        if (depth == Integer.MAX_VALUE)
+            throw new IllegalArgumentException("DHTree: can't find depth of node " + node);
+
+        return depth;
+    }
+
+    private int findDepth(DHNode currentNode, DHNode targetNode, int currentDepth) {
+        if (currentNode == null)
+            return Integer.MAX_VALUE;
+
+        if (currentNode == targetNode)
+            return currentDepth;
+
+        int leftSubtreeResult = findDepth(currentNode.left, targetNode, currentDepth + 1);
+        int rightSubtreeResult = findDepth(currentNode.right, targetNode, currentDepth + 1);
+
+        return Math.min(leftSubtreeResult, rightSubtreeResult);
+    }
+
+    private void movePointerUp(DHNode p, int steps) {
+        while (steps > 0) {
+            p = p.parent;
+            --steps;
+        }
     }
 
     private DHNode findNearestNode(DHNode baseNode, List<DHNode> nodes) {
@@ -213,7 +369,7 @@ public class DHTree {
 
     private void expandTree() {
         if (root == null)
-            throw new NullPointerException("DHTree: root has not been initialized!");
+            throw new NullPointerException("DHTree: root = null!");
 
         DHNode new_root = new DHNode();
         new_root.left = root;
@@ -249,6 +405,35 @@ public class DHTree {
         return new_node;
     }
 
+    private void updateKeysInBranch(DHNode node) {
+        DHNode currentNode = node;
+        DHNode left, right;
+
+        while (currentNode != null) {
+            left = currentNode.left;
+            right = currentNode.right;
+
+            if (left == null || right == null)
+                throw new NullPointerException("DHTree: failed to update keys.");
+
+            Long secretKey = (left.secretKey != null) ? left.secretKey : right.secretKey;
+            Long publicKey = (left.secretKey != null) ? right.publicKey : left.publicKey;
+
+            if (secretKey == null) {            // both children are nulls -> set nulls
+                currentNode.secretKey = null;
+                currentNode.publicKey = null;
+            } else if (publicKey == null) {     // one of children is null -> copy non null child
+                currentNode.secretKey = secretKey;
+                currentNode.publicKey = (left.publicKey != null) ? left.publicKey : right.publicKey;
+            } else {                            // both children are present -> calculate new keys
+                currentNode.secretKey = (long) Math.pow(publicKey, secretKey) % masterClient.getP();
+                currentNode.secretKey = (long) Math.pow(masterClient.getG(), currentNode.secretKey) % masterClient.getP();
+            }
+
+            currentNode = currentNode.parent;
+        }
+    }
+
     private void initialize(Client client) {
         root = new DHNode();
 
@@ -265,5 +450,7 @@ public class DHTree {
         clientsNodes.put(client, root);
 
         clientsNumber = 1;
+
+        masterClient = client;
     }
 }

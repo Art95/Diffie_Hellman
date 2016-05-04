@@ -35,7 +35,7 @@ public class HierarchyLevelGroup {
             client.updateLevelTreeStructure(leaving_client, ActionType.LEAVE);
         }
 
-        sponsor.updateKeys(ActionType.LEAVE);
+        sponsor.updateKeys();
     }
 
     public void receiveKeysUpdateRequest(KeysUpdateMessage message) {

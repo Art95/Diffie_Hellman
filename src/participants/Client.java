@@ -1,5 +1,6 @@
 package participants;
 
+import dhtree.BranchInformation;
 import dhtree.DHTree;
 import messages.ClientJoinAnswerMessage;
 import messages.KeysUpdateMessage;
@@ -17,8 +18,8 @@ public class Client {
     private long p;
     private long g;
 
-    private long secretKey;
-    private long publicKey;
+    private Long secretKey;
+    private Long publicKey;
 
     private HierarchyTree hTree;
     private DHTree levelTree;
@@ -30,8 +31,8 @@ public class Client {
         p = -1;
         g = -1;
 
-        secretKey = -1;
-        publicKey = -1;
+        secretKey = null;
+        publicKey = null;
 
         hTree = null;
         levelTree = null;
@@ -46,6 +47,8 @@ public class Client {
 
         levelTree = new DHTree(this);
         hTree = new HierarchyTree();
+
+        levelTree.setMasterClientKeys(secretKey, publicKey);
     }
 
     public void joinGroup(Group group) {
@@ -55,7 +58,10 @@ public class Client {
         setGroupParameters(groupInfo);
 
         updateLevelTreeStructure(this, ActionType.JOIN);
-        updateKeys(ActionType.JOIN);
+
+        levelTree.setMasterClientKeys(secretKey, publicKey);
+
+        updateKeys();
 
         sendKeysUpdateMessage(group);
     }
@@ -81,11 +87,27 @@ public class Client {
         return this.publicKey;
     }
 
+    public long getP() {
+        return p;
+    }
+
+    public long getG() {
+        return g;
+    }
+
     public void updateLevelTreeStructure(Client client, ActionType action) {
         if (action == ActionType.JOIN)
             levelTree.addClient(client);
         else if (action == ActionType.LEAVE)
             levelTree.removeClient(client);
+    }
+
+    public void updateKeys() {
+        levelTree.updateKeys(this);
+    }
+
+    public void updateKeys(BranchInformation branchInfo) {
+        this.levelTree.updateKeys(branchInfo);
     }
 
     public Client findSiblingClient(Client client) {
@@ -119,7 +141,7 @@ public class Client {
         KeysUpdateMessage updateMessage = new KeysUpdateMessage();
         updateMessage.clientId = this.id;
         updateMessage.levelInHierarchy = this.levelInHierarchy;
-        updateMessage.changedBranchInformation = generateBranchInformation();
+        updateMessage.changedBranchInformation = levelTree.getBranchInformation(this);
 
         group.receiveKeysUpdateRequest(updateMessage);
     }
@@ -139,7 +161,7 @@ public class Client {
     private void generateKeys() {
         Random rand = new Random();
 
-        secretKey = rand.nextInt(10);
-        publicKey = (long)Math.pow(g, secretKey) % p;
+        secretKey = (long) rand.nextInt(10);
+        publicKey = (long) Math.pow(g, secretKey) % p;
     }
 }
