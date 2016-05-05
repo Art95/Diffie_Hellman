@@ -1,5 +1,7 @@
 package messages;
 
+import dhtree.TreeInformation;
+
 /**
  * Created by Artem on 02.05.2016.
  */

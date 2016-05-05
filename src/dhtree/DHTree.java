@@ -21,6 +21,7 @@ public class DHTree {
 
         public DHNode() {
             id = -1;
+
             secretKey = null;
             publicKey = null;
 
@@ -29,6 +30,19 @@ public class DHTree {
             right = null;
 
             client = null;
+        }
+
+        public DHNode(TreeNodeInformation nodeInfo) {
+            id = nodeInfo.getNodeID();
+
+            secretKey = null;
+            publicKey = nodeInfo.getNodePublicKey();
+
+            parent = null;
+            left = null;
+            right = null;
+
+            client = nodeInfo.getNodeClient();
         }
 
         @Override
@@ -61,7 +75,7 @@ public class DHTree {
     private Map<DHNode, Client> nodesClients;
     private Map<Client, DHNode> clientsNodes;
 
-    private int clientsNumber;
+    private int numberOfClients;
 
     private Client masterClient;
 
@@ -72,7 +86,7 @@ public class DHTree {
         nodesClients = new HashMap<>();
         clientsNodes = new HashMap<>();
 
-        clientsNumber = 0;
+        numberOfClients = 0;
 
         masterClient = null;
     }
@@ -81,13 +95,37 @@ public class DHTree {
         initialize(client);
     }
 
+    public DHTree(TreeInformation treeInfo) {
+        this.clientsNodes = new HashMap<>();
+        this.nodesClients = new HashMap<>();
+
+        this.height = treeInfo.getTreeHeight();
+        this.numberOfClients = treeInfo.getNumberOfClients();
+
+        TreeNodeInformation rootInfo = treeInfo.getNodeInformation(0);
+        root = new DHNode(rootInfo);
+
+        if (rootInfo.getLeftChildNodeID() != null) {
+            root.left = buildSubTree(treeInfo, rootInfo.getLeftChildNodeID(), root);
+        }
+
+        if (rootInfo.getRightChildNodeID() != null) {
+            root.right = buildSubTree(treeInfo, rootInfo.getRightChildNodeID(), root);
+        }
+
+        if (rootInfo.getNodeID() > 0) {
+            clientsNodes.put(rootInfo.getNodeClient(), root);
+            nodesClients.put(root, rootInfo.getNodeClient());
+        }
+    }
+
     public void addClient(Client client) {
         if (root == null) {
             initialize(client);
             return;
         }
 
-        if (clientsNumber >= Math.pow(2, height - 1)) {
+        if (numberOfClients >= Math.pow(2, height - 1)) {
             expandTree();
         }
 
@@ -98,7 +136,7 @@ public class DHTree {
                 nodesClients.put(node, client);
                 clientsNodes.put(client, node);
 
-                ++clientsNumber;
+                ++numberOfClients;
 
                 return;
             }
@@ -119,7 +157,7 @@ public class DHTree {
 
         holdingNode.clear();
 
-        --clientsNumber;
+        --numberOfClients;
     }
     
     public void updateKeys(Client client) {
@@ -206,6 +244,42 @@ public class DHTree {
         }
     }
 
+    public TreeInformation getTreeInformation() {
+        if (root == null)
+            throw new NullPointerException("DHTree: root = null!");
+
+        TreeInformation treeInfo = new TreeInformation();
+        treeInfo.setTreeHeight(this.height);
+        treeInfo.setNumberOfClients(this.numberOfClients);
+
+        TreeNodeInformation rootInfo = new TreeNodeInformation();
+
+        rootInfo.setNodeID(0);
+        rootInfo.setParentNodeID(null);
+        rootInfo.setNodePublicKey(root.publicKey);
+        rootInfo.setNodeClient(root.client);
+
+        Integer leftChildID = null;
+        Integer rightChildID = null;
+
+        if (root.left != null) {
+            leftChildID = (root.left.id > 0) ? root.left.id : -1;
+            collectTreeInformation(root.left, leftChildID, 0, treeInfo);
+        }
+
+        if (root.right != null) {
+            rightChildID = (root.right.id > 0) ? root.right.id : -2;
+            collectTreeInformation(root.right, rightChildID, 0, treeInfo);
+        }
+
+        rootInfo.setLeftChildNodeID(leftChildID);
+        rootInfo.setRightChildNodeID(rightChildID);
+
+        treeInfo.addNodeInformation(rootInfo);
+
+        return treeInfo;
+    }
+
     public BranchInformation getBranchInformation(Client client) {
         if (root == null)
             throw new NullPointerException("DHTree: root = null!");
@@ -228,15 +302,41 @@ public class DHTree {
     public void clear() {
         root = null;
 
-        clientsNumber = 0;
+        numberOfClients = 0;
         height = 0;
 
         clientsNodes.clear();
         nodesClients.clear();
     }
 
+    private void collectTreeInformation(DHNode node, Integer ID, Integer parentNodeID, TreeInformation treeInfo) {
+        TreeNodeInformation nodeInfo = new TreeNodeInformation();
+
+        nodeInfo.setNodeID(ID);
+        nodeInfo.setParentNodeID(parentNodeID);
+        nodeInfo.setNodePublicKey(node.publicKey);
+        nodeInfo.setNodeClient(node.client);
+
+        Integer leftChildNodeID = null;
+        Integer rightChildNodeID = null;
+
+        if (node.left != null) {
+            leftChildNodeID = (node.left.id > 0) ? node.left.id : 2 * ID - 1;
+            collectTreeInformation(node.left, leftChildNodeID, ID, treeInfo);
+        }
+
+        if (node.right != null) {
+            rightChildNodeID = (node.right.id > 0) ? node.right.id : 2 * ID - 2;
+            collectTreeInformation(node.right, rightChildNodeID, ID, treeInfo);
+        }
+
+        nodeInfo.setLeftChildNodeID(leftChildNodeID);
+        nodeInfo.setRightChildNodeID(rightChildNodeID);
+
+        treeInfo.addNodeInformation(nodeInfo);
+    }
+
     private DHNode setChangedKeys(BranchInformation branchInfo) {
-        Map<Integer, BranchNodeInformation> nodesInfo = branchInfo.getNodesInformation();
         int sponsorNodeID = branchInfo.getBranchMasterClientNodeID();
         DHNode current = null;
         int currentNodeInfoID = sponsorNodeID;
@@ -249,9 +349,11 @@ public class DHTree {
         DHNode sponsorNode = current;
 
         while (current != null) {
-            current.publicKey = nodesInfo.get(currentNodeInfoID).publicKey;
+            BranchNodeInformation nodeInfo = branchInfo.getNodeInformation(currentNodeInfoID);
 
-            currentNodeInfoID = nodesInfo.get(currentNodeInfoID).parentId;
+            current.publicKey = nodeInfo.getPublicKey();
+
+            currentNodeInfoID = nodeInfo.getParentNodeID();
             current = current.parent;
         }
 
@@ -373,7 +475,7 @@ public class DHTree {
 
         DHNode new_root = new DHNode();
         new_root.left = root;
-        new_root.right = cloneTree(root);
+        new_root.right = cloneSubTree(root);
 
         new_root.left.parent = new_root;
         new_root.right.parent = new_root;
@@ -382,7 +484,7 @@ public class DHTree {
         ++height;
     }
 
-    private DHNode cloneTree(DHNode node) {
+    private DHNode cloneSubTree(DHNode node) {
         if (node == null)
             return null;
 
@@ -393,8 +495,8 @@ public class DHTree {
             nodesClients.put(new_node, null);
         }
 
-        new_node.left = cloneTree(node.left);
-        new_node.right = cloneTree(node.right);
+        new_node.left = cloneSubTree(node.left);
+        new_node.right = cloneSubTree(node.right);
 
         if (new_node.left != null)
             new_node.left.parent = new_node;
@@ -449,8 +551,30 @@ public class DHTree {
         clientsNodes = new HashMap<>();
         clientsNodes.put(client, root);
 
-        clientsNumber = 1;
+        numberOfClients = 1;
 
         masterClient = client;
+    }
+
+    private DHNode buildSubTree(TreeInformation treeInfo, Integer currentID, DHNode parent) {
+        TreeNodeInformation nodeInfo = treeInfo.getNodeInformation(currentID);
+
+        DHNode node = new DHNode(nodeInfo);
+        node.parent = parent;
+
+        if (nodeInfo.getLeftChildNodeID() != null) {
+            node.left = buildSubTree(treeInfo, nodeInfo.getLeftChildNodeID(), node);
+        }
+
+        if (nodeInfo.getRightChildNodeID() != null) {
+            node.right = buildSubTree(treeInfo, nodeInfo.getRightChildNodeID(), node);
+        }
+
+        if (nodeInfo.getNodeID() > 0) {
+            clientsNodes.put(nodeInfo.getNodeClient(), node);
+            nodesClients.put(node, nodeInfo.getNodeClient());
+        }
+
+        return node;
     }
 }

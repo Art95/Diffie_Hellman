@@ -131,7 +131,7 @@ public class Client {
         ClientJoinAnswerMessage answer = new ClientJoinAnswerMessage();
         answer.p = this.p;
         answer.g = this.g;
-        answer.levelTreeInfo = generateLevelTreeInformation();
+        answer.levelTreeInfo = levelTree.getTreeInformation();
         answer.hierarchyTreeInfo = generateHierarchyTreeInformation();
 
         return answer;
