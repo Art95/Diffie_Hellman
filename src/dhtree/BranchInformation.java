@@ -22,8 +22,11 @@ public class BranchInformation {
         nodes.put(id, new BranchNodeInformation(id, parentId, publicKey));
     }
 
-    public Map<Integer, BranchNodeInformation> getNodesInformation() {
-        return this.nodes;
+    public BranchNodeInformation getNodeInformation(Integer nodeID) {
+        if (!nodes.containsKey(nodeID))
+            throw new IllegalArgumentException("BranchInformation: does not contain information about node " + nodeID);
+
+        return this.nodes.get(nodeID);
     }
 
     public int getBranchMasterClientNodeID() {
