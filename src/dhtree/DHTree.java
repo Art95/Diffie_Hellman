@@ -160,14 +160,14 @@ public class DHTree {
         --numberOfClients;
     }
     
-    public void updateKeys(Client client) {
+    public void updateKeys() {
         if (root == null)
             throw new NullPointerException("DHTree: root = null!");
 
-        if (!clientsNodes.containsKey(client))
-            throw new IllegalArgumentException("DHTree: Tree does not contain client + " + client);
+        if (!clientsNodes.containsKey(masterClient))
+            throw new IllegalArgumentException("DHTree: Tree does not contain client + " + masterClient);
 
-        DHNode clientNode = clientsNodes.get(client);
+        DHNode clientNode = clientsNodes.get(masterClient);
 
         updateKeysInBranch(clientNode.parent);
     }
@@ -529,7 +529,7 @@ public class DHTree {
                 currentNode.publicKey = (left.publicKey != null) ? left.publicKey : right.publicKey;
             } else {                            // both children are present -> calculate new keys
                 currentNode.secretKey = (long) Math.pow(publicKey, secretKey) % masterClient.getP();
-                currentNode.secretKey = (long) Math.pow(masterClient.getG(), currentNode.secretKey) % masterClient.getP();
+                currentNode.publicKey = (long) Math.pow(masterClient.getG(), currentNode.secretKey) % masterClient.getP();
             }
 
             currentNode = currentNode.parent;
