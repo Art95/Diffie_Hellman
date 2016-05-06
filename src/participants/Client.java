@@ -2,6 +2,7 @@ package participants;
 
 import dhtree.BranchInformation;
 import dhtree.DHTree;
+import hierarchytree.HierarchyTree;
 import messages.ClientJoinAnswerMessage;
 import messages.KeysUpdateMessage;
 import util.ActionType;
@@ -21,7 +22,7 @@ public class Client {
     private Long secretKey;
     private Long publicKey;
 
-    private HierarchyTree hTree;
+    private HierarchyTree hierarchyTree;
     private DHTree levelTree;
 
     public Client() {
@@ -34,7 +35,7 @@ public class Client {
         secretKey = null;
         publicKey = null;
 
-        hTree = null;
+        hierarchyTree = null;
         levelTree = null;
     }
 
@@ -46,7 +47,7 @@ public class Client {
         generateKeys();
 
         levelTree = new DHTree(this);
-        hTree = new HierarchyTree();
+        hierarchyTree = new HierarchyTree();
 
         levelTree.setMasterClientKeys(secretKey, publicKey);
     }
@@ -103,7 +104,7 @@ public class Client {
     }
 
     public void updateKeys() {
-        levelTree.updateKeys(this);
+        levelTree.updateKeys();
     }
 
     public void updateKeys(BranchInformation branchInfo) {
@@ -132,7 +133,7 @@ public class Client {
         answer.p = this.p;
         answer.g = this.g;
         answer.levelTreeInfo = levelTree.getTreeInformation();
-        answer.hierarchyTreeInfo = generateHierarchyTreeInformation();
+        answer.hierarchyTreeInfo = hierarchyTree.getTreeInformation();
 
         return answer;
     }
@@ -150,7 +151,7 @@ public class Client {
         this.p = parameters.p;
         this.g = parameters.g;
         this.levelTree = new DHTree(parameters.levelTreeInfo);
-        this.hTree = new HierarchyTree(parameters.hierarchyTreeInfo);
+        this.hierarchyTree = new HierarchyTree(parameters.hierarchyTreeInfo);
     }
 
     private void generateParameters() {
