@@ -5,10 +5,7 @@ import dhtree.BranchNodeInformation;
 import participants.Client;
 import util.Pair;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by Artem on 06.05.2016.
@@ -43,8 +40,45 @@ public class HierarchyTree {
             clientsIDs = new HashSet<>();
         }
 
+        public Node(HierarchyTreeNodeInformation nodeInfo) {
+            hierarchyLevel = nodeInfo.getNodeID();
+
+            secretKey = null;
+            publicKey = nodeInfo.getNodePublicKey();
+
+            parent = null;
+            left = null;
+            right = null;
+
+            clientsIDs = new HashSet<>(nodeInfo.getClientsIDs());
+            responsibility = new HashSet<>(nodeInfo.getResponsibility());
+        }
+
         public boolean hasResponsibilities() {
             return !responsibility.isEmpty();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Node node = (Node) o;
+
+            if (!hierarchyLevel.equals(node.hierarchyLevel)) return false;
+            if (left != null ? !left.equals(node.left) : node.left != null) return false;
+            if (right != null ? !right.equals(node.right) : node.right != null) return false;
+            return parent != null ? parent.equals(node.parent) : node.parent == null;
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = hierarchyLevel.hashCode();
+            result = 31 * result + (left != null ? left.hashCode() : 0);
+            result = 31 * result + (right != null ? right.hashCode() : 0);
+            result = 31 * result + (parent != null ? parent.hashCode() : 0);
+            return result;
         }
     }
 
@@ -75,6 +109,28 @@ public class HierarchyTree {
 
     public HierarchyTree(Client client) {
         initialize(client);
+    }
+
+    public HierarchyTree(HierarchyTreeInformation treeInfo) {
+        this.hierarchyLevels = new HashMap<>();
+
+        this.minHierarchyLevel = treeInfo.getMinHierarchyLevel();
+        this.maxHierarchyLevel = treeInfo.getMaxHierarchyLevel();
+
+        HierarchyTreeNodeInformation rootInfo = treeInfo.getNodeInformation(0);
+        root = new Node(rootInfo);
+
+        if (rootInfo.getLeftChildNodeID() != null) {
+            root.left = buildSubTree(treeInfo, rootInfo.getLeftChildNodeID(), root);
+        }
+
+        if (rootInfo.getRightChildNodeID() != null) {
+            root.right = buildSubTree(treeInfo, rootInfo.getRightChildNodeID(), root);
+        }
+
+        if (rootInfo.getNodeID() > 0) {
+            hierarchyLevels.put(root.hierarchyLevel, root);
+        }
     }
 
     public void addClient(Client client) {
@@ -127,10 +183,10 @@ public class HierarchyTree {
 
     public void updateKeys() {
         if (root == null)
-            throw new NullPointerException("DHTree: root = null!");
+            throw new NullPointerException("HierarchyTree: root = null!");
 
         if (!hierarchyLevels.containsKey(masterClientHierarchyLevel))
-            throw new IllegalArgumentException("DHTree: Tree does not contain hierarchy + " + masterClientHierarchyLevel);
+            throw new IllegalArgumentException("HierarchyTree: Tree does not contain hierarchy + " + masterClientHierarchyLevel);
 
         Node clientNode = hierarchyLevels.get(masterClientHierarchyLevel);
 
@@ -146,6 +202,43 @@ public class HierarchyTree {
         updateKeysInBranch(lca);
     }
 
+    public HierarchyTreeInformation getTreeInformation() {
+        if (root == null)
+            throw new NullPointerException("HierarchyTree: root = null!");
+
+        HierarchyTreeInformation treeInfo = new HierarchyTreeInformation();
+        treeInfo.setMaxHierarchyLevel(maxHierarchyLevel);
+        treeInfo.setMinHierarchyLevel(minHierarchyLevel);
+
+        HierarchyTreeNodeInformation rootInfo = new HierarchyTreeNodeInformation();
+
+        rootInfo.setNodeID(0);
+        rootInfo.setParentNodeID(null);
+        rootInfo.setNodePublicKey(root.publicKey);
+        rootInfo.addClientsIDs(root.clientsIDs);
+        rootInfo.addResponsibilties(root.responsibility);
+
+        Integer leftChildID = null;
+        Integer rightChildID = null;
+
+        if (root.left != null) {
+            leftChildID = (root.left.hierarchyLevel > 0) ? root.left.hierarchyLevel : -1;
+            collectTreeInformation(root.left, leftChildID, 0, treeInfo);
+        }
+
+        if (root.right != null) {
+            rightChildID = (root.right.hierarchyLevel > 0) ? root.right.hierarchyLevel : -2;
+            collectTreeInformation(root.right, rightChildID, 0, treeInfo);
+        }
+
+        rootInfo.setLeftChildNodeID(leftChildID);
+        rootInfo.setRightChildNodeID(rightChildID);
+
+        treeInfo.addNodeInformation(rootInfo);
+
+        return treeInfo;
+    }
+
     public BranchInformation getBranchInformation(Integer hierarchyLevel) {
         if (root == null)
             throw new NullPointerException("HierarchyTree: root = null!");
@@ -156,6 +249,49 @@ public class HierarchyTree {
         Node levelLeaf = hierarchyLevels.get(hierarchyLevel);
 
         return collectBranchInformation(levelLeaf);
+    }
+
+    public void setMasterClientHierarchyLevelData(Client client, Long secretKey, Long publicKey) {
+        this.masterClientHierarchyLevel = client.getLevelInHierarchy();
+
+        Node masterClientLeaf = hierarchyLevels.get(masterClientHierarchyLevel);
+
+        masterClientLeaf.secretKey = secretKey;
+        masterClientLeaf.publicKey = publicKey;
+
+        p = client.getP();
+        g = client.getG();
+    }
+
+    public int numberOfParticipantsOnLevel(Integer hierarchyLevel) {
+        if (!hierarchyLevels.containsKey(hierarchyLevel))
+            return 0;
+
+        return hierarchyLevels.get(hierarchyLevel).clientsIDs.size();
+    }
+
+    public Integer findSponsorID(Integer changingLevel) {
+        Set<Integer> levels = new TreeSet<>(hierarchyLevels.keySet());
+
+        for (Integer level : levels) {
+            if (!level.equals(changingLevel) && !hierarchyLevels.get(level).clientsIDs.isEmpty())
+                return hierarchyLevels.get(level).clientsIDs.iterator().next();
+        }
+
+        return null;
+    }
+
+    public void clear() {
+        root = null;
+        masterClientHierarchyLevel = null;
+
+        maxHierarchyLevel = Integer.MAX_VALUE;
+        minHierarchyLevel = Integer.MIN_VALUE;
+
+        hierarchyLevels.clear();
+
+        p = null;
+        g = null;
     }
 
     private void pushFront(Client client, Integer nextLevel) {
@@ -343,6 +479,34 @@ public class HierarchyTree {
         return branchInfo;
     }
 
+    private void collectTreeInformation(Node node, Integer ID, Integer parentNodeID, HierarchyTreeInformation treeInfo) {
+        HierarchyTreeNodeInformation nodeInfo = new HierarchyTreeNodeInformation();
+
+        nodeInfo.setNodeID(ID);
+        nodeInfo.setParentNodeID(parentNodeID);
+        nodeInfo.setNodePublicKey(node.publicKey);
+        nodeInfo.addResponsibilties(node.responsibility);
+        nodeInfo.addClientsIDs(node.clientsIDs);
+
+        Integer leftChildNodeID = null;
+        Integer rightChildNodeID = null;
+
+        if (node.left != null) {
+            leftChildNodeID = (node.left.hierarchyLevel > 0) ? node.left.hierarchyLevel : 2 * ID - 1;
+            collectTreeInformation(node.left, leftChildNodeID, ID, treeInfo);
+        }
+
+        if (node.right != null) {
+            rightChildNodeID = (node.right.hierarchyLevel > 0) ? node.right.hierarchyLevel : 2 * ID - 2;
+            collectTreeInformation(node.right, rightChildNodeID, ID, treeInfo);
+        }
+
+        nodeInfo.setLeftChildNodeID(leftChildNodeID);
+        nodeInfo.setRightChildNodeID(rightChildNodeID);
+
+        treeInfo.addNodeInformation(nodeInfo);
+    }
+
     private void initialize(Client client) {
         root = new Node();
 
@@ -362,5 +526,26 @@ public class HierarchyTree {
 
         p = client.getP();
         g = client.getG();
+    }
+
+    private Node buildSubTree(HierarchyTreeInformation treeInfo, Integer currentID, Node parent) {
+        HierarchyTreeNodeInformation nodeInfo = treeInfo.getNodeInformation(currentID);
+
+        Node node = new Node(nodeInfo);
+        node.parent = parent;
+
+        if (nodeInfo.getLeftChildNodeID() != null) {
+            node.left = buildSubTree(treeInfo, nodeInfo.getLeftChildNodeID(), node);
+        }
+
+        if (nodeInfo.getRightChildNodeID() != null) {
+            node.right = buildSubTree(treeInfo, nodeInfo.getRightChildNodeID(), node);
+        }
+
+        if (nodeInfo.getNodeID() > 0) {
+            hierarchyLevels.put(node.hierarchyLevel, node);
+        }
+
+        return node;
     }
 }

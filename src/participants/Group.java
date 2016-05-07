@@ -1,34 +1,48 @@
 package participants;
 
 import messages.KeysUpdateMessage;
+import util.ActionType;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by Artem on 02.05.2016.
  */
 public class Group {
-    private Map<Integer, HierarchyLevelGroup> hierarchy;
+    private Set<Client> clients;
 
     public Group() {
-        hierarchy = new HashMap<>();
+        clients = new HashSet<>();
     }
 
-    public Client receiveJoinRequest(Client new_client) {
-        HierarchyLevelGroup clientGroup = hierarchy.get(new_client.getLevelInHierarchy());
-        clientGroup.receiveJoinRequest(new_client);
+    public void receiveJoinRequest(Client new_client) {
+        if (clients.contains(new_client))
+            throw new IllegalArgumentException("Group already contains client " + new_client);
 
-        return clientGroup.getContactClient();
+        for (Client client : clients) {
+            client.updateTreesStructure(new_client, ActionType.JOIN);
+        }
+
+        clients.add(new_client);
     }
 
     public void receiveLeaveRequest(Client leaving_client) {
-        HierarchyLevelGroup clientGroup = hierarchy.get(leaving_client.getLevelInHierarchy());
-        clientGroup.receiveLeaveRequest(leaving_client);
+        if (!clients.contains(leaving_client))
+            return;
+        else
+            clients.remove(leaving_client);
+
+        for (Client client : clients) {
+            client.updateTreesStructure(leaving_client, ActionType.LEAVE);
+        }
     }
 
     public void receiveKeysUpdateRequest(KeysUpdateMessage message) {
-        HierarchyLevelGroup clientGroup = hierarchy.get(message.levelInHierarchy);
-        clientGroup.receiveKeysUpdateRequest(message);
+        for (Client client : clients) {
+            client.updateKeys(message);
+        }
     }
 }

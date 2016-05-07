@@ -125,6 +125,9 @@ public class DHTree {
             return;
         }
 
+        if (clientsNodes.containsKey(client))
+            return;
+
         if (numberOfClients >= Math.pow(2, height - 1)) {
             expandTree();
         }
@@ -179,6 +182,13 @@ public class DHTree {
         DHNode lca = findLCA(sponsorNode, masterClientNode);
 
         updateKeysInBranch(lca);
+    }
+
+    public Client findSponsor() {
+        if (!clientsNodes.isEmpty())
+            return clientsNodes.keySet().iterator().next();
+
+        return null;
     }
 
     public Client findSiblingClient(Client client) {
@@ -292,11 +302,17 @@ public class DHTree {
         return collectBranchInformation(clientNode);
     }
 
-    public void setMasterClientKeys(Long secretKey, Long publicKey) {
+    public void setMasterClientData(Client client, Long secretKey, Long publicKey) {
+        this.masterClient = client;
+
         DHNode masterClientNode = clientsNodes.get(masterClient);
 
         masterClientNode.secretKey = secretKey;
         masterClientNode.publicKey = publicKey;
+    }
+
+    public Pair<Long, Long> getLevelGroupKeys() {
+        return new Pair<>(root.secretKey, root.publicKey);
     }
 
     public void clear() {
