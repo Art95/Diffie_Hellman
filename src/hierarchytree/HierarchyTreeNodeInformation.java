@@ -7,7 +7,9 @@ import java.util.Set;
  * Created by Artem on 07.05.2016.
  */
 public class HierarchyTreeNodeInformation {
-    private int id;
+    private int ID;
+
+    private int hierarchyLevel;
 
     private Integer parentID;
     private Integer leftChildID;
@@ -19,7 +21,9 @@ public class HierarchyTreeNodeInformation {
     private Set<Integer> clientsIDs;
 
     public HierarchyTreeNodeInformation() {
-        id = Integer.MIN_VALUE;
+        ID = Integer.MIN_VALUE;
+
+        hierarchyLevel = Integer.MIN_VALUE;
 
         parentID = null;
         leftChildID = null;
@@ -32,12 +36,18 @@ public class HierarchyTreeNodeInformation {
     }
 
     public int getNodeID() {
-        return id;
+        return ID;
     }
 
     public void setNodeID(int id) {
-        this.id = id;
+        this.ID = id;
     }
+
+    public void setHierarchyLevel(int hierarchyLevel) {
+        this.hierarchyLevel = hierarchyLevel;
+    }
+
+    public int getHierarchyLevel() { return this.hierarchyLevel; }
 
     public Integer getParentNodeID() {
         return parentID;
@@ -79,7 +89,7 @@ public class HierarchyTreeNodeInformation {
         this.responsibility.add(hierarchyLevel);
     }
 
-    public void addResponsibilties(Set<Integer> hierarchyLevels) {
+    public void addResponsibilities(Set<Integer> hierarchyLevels) {
         this.responsibility.addAll(hierarchyLevels);
     }
 

@@ -6,24 +6,24 @@ import java.util.Map;
 /**
  * Created by Artem on 05.05.2016.
  */
-public class TreeInformation {
-    private Map<Integer, TreeNodeInformation> nodesInformation;
+public class LevelTreeInformation {
+    private Map<Integer, LevelTreeNodeInformation> nodesInformation;
     private int treeHeight;
     private int numberOfClients;
 
-    public TreeInformation() {
+    public LevelTreeInformation() {
         nodesInformation = new HashMap<>();
         treeHeight = 0;
         numberOfClients = 0;
     }
 
-    public void addNodeInformation(TreeNodeInformation nodeInfo) {
+    public void addNodeInformation(LevelTreeNodeInformation nodeInfo) {
         nodesInformation.put(nodeInfo.getNodeID(), nodeInfo);
     }
 
-    public TreeNodeInformation getNodeInformation(Integer nodeID) {
+    public LevelTreeNodeInformation getNodeInformation(Integer nodeID) {
         if (!nodesInformation.containsKey(nodeID)) {
-            throw new IllegalArgumentException("TreeInformation: does not contain information about node " + nodeID);
+            throw new IllegalArgumentException("LevelTreeInformation: does not contain information about node " + nodeID);
         }
 
         return nodesInformation.get(nodeID);

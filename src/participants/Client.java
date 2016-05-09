@@ -84,7 +84,7 @@ public class Client {
         hierarchyTree.clear();
         hierarchyTree = new HierarchyTree(this);
 
-        group = null;
+        this.group = null;
     }
 
     public int getID() {
@@ -109,13 +109,13 @@ public class Client {
 
     public void updateTreesStructure(Client client, ActionType action) {
         if (action == ActionType.JOIN) {
+            Client sponsor = findJoinSponsor(client);
+
+            if (this.equals(sponsor)) {
+                sendGroupInformation(client);
+            }
+
             if (client.levelInHierarchy == this.levelInHierarchy) {
-                Client sponsor = findJoinSponsor(client);
-
-                if (sponsor.equals(this)) {
-                    sendGroupInformation(client);
-                }
-
                 levelTree.addClient(client);
             }
 
@@ -182,6 +182,11 @@ public class Client {
         return result;
     }
 
+    @Override
+    public String toString() {
+        return "(Client " + ID + ": level = " + levelInHierarchy + ", publicKey = " + publicKey + ")";
+    }
+
     private void sendGroupJoinRequest(Group group) {
         group.receiveJoinRequest(this);
     }
@@ -192,9 +197,18 @@ public class Client {
 
     private void sendGroupInformation(Client client) {
         ClientJoinAnswerMessage answer = new ClientJoinAnswerMessage();
+
+        answer.ID = this.ID;
+        answer.levelInHierarchy = this.levelInHierarchy;
+
         answer.p = this.p;
         answer.g = this.g;
-        answer.levelTreeInfo = levelTree.getTreeInformation();
+
+        if (client.levelInHierarchy == this.levelInHierarchy)
+            answer.levelTreeInfo = levelTree.getTreeInformation();
+        else
+            answer.levelTreeInfo = null;
+
         answer.hierarchyTreeInfo = hierarchyTree.getTreeInformation();
 
         client.receiveGroupInformation(answer);
@@ -217,15 +231,25 @@ public class Client {
     private void setGroupParameters(ClientJoinAnswerMessage parameters) {
         this.p = parameters.p;
         this.g = parameters.g;
-        this.levelTree = new DHTree(parameters.levelTreeInfo);
+
+        generateKeys();
+
+        if (parameters.levelInHierarchy == this.levelInHierarchy)
+            this.levelTree = new DHTree(parameters.levelTreeInfo);
+
         this.hierarchyTree = new HierarchyTree(parameters.hierarchyTreeInfo);
     }
 
     private Client findJoinSponsor(Client joiningClient) {
         if (hierarchyTree.numberOfParticipantsOnLevel(joiningClient.getLevelInHierarchy()) > 0) {
-            if (this.levelInHierarchy == joiningClient.levelInHierarchy)
-                return levelTree.findSponsor();
-            else
+            if (this.levelInHierarchy == joiningClient.levelInHierarchy) {
+                Client sponsor = levelTree.findSponsor(joiningClient);
+
+                if (sponsor == null)
+                    return new Client();
+                else
+                    return sponsor;
+            } else
                 return new Client();
         } else {
             Integer sponsorID = hierarchyTree.findSponsorID(joiningClient.getLevelInHierarchy());
@@ -258,14 +282,19 @@ public class Client {
     }
 
     private void generateParameters() {
-        p = 17;
-        g = 3;
+        int[] Ps = {11, 13, 17, 23, 29};
+        int[] Gs = {3, 5, 7};
+
+        Random rand = new Random();
+
+        p = Ps[rand.nextInt(Ps.length)];
+        g = Gs[rand.nextInt(Gs.length)];
     }
 
     private void generateKeys() {
         Random rand = new Random();
 
-        secretKey = (long) rand.nextInt(10);
+        secretKey = (long) rand.nextInt((int)p) + 2;
         publicKey = (long) Math.pow(g, secretKey) % p;
     }
 }

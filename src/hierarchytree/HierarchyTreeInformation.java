@@ -23,7 +23,7 @@ public class HierarchyTreeInformation {
 
     public HierarchyTreeNodeInformation getNodeInformation(Integer nodeID) {
         if (!nodesInformation.containsKey(nodeID)) {
-            throw new IllegalArgumentException("TreeInformation: does not contain information about node " + nodeID);
+            throw new IllegalArgumentException("LevelTreeInformation: does not contain information about node " + nodeID);
         }
 
         return nodesInformation.get(nodeID);

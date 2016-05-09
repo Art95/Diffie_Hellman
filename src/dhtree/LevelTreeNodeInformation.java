@@ -5,7 +5,7 @@ import participants.Client;
 /**
  * Created by Artem on 05.05.2016.
  */
-public class TreeNodeInformation {
+public class LevelTreeNodeInformation {
     private int id;
 
     private Integer parentID;
@@ -16,8 +16,12 @@ public class TreeNodeInformation {
 
     private Client client;
 
-    public TreeNodeInformation() {
+    private int index; // index of leaf
+
+    public LevelTreeNodeInformation() {
         id = Integer.MIN_VALUE;
+
+        index = -1;
 
         parentID = null;
         leftChildID = null;
@@ -36,17 +40,17 @@ public class TreeNodeInformation {
         this.id = id;
     }
 
-    public Integer getParentNodeID() {
-        return parentID;
-    }
+    public int getIndex() { return this.index; }
+
+    public void setIndex(int index) { this.index = index; }
+
+    public Integer getParentNodeID() { return parentID; }
 
     public void setParentNodeID(Integer parentID) {
         this.parentID = parentID;
     }
 
-    public Integer getLeftChildNodeID() {
-        return leftChildID;
-    }
+    public Integer getLeftChildNodeID() { return leftChildID; }
 
     public void setLeftChildNodeID(Integer leftChildID) {
         this.leftChildID = leftChildID;

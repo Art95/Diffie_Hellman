@@ -41,7 +41,7 @@ public class HierarchyTree {
         }
 
         public Node(HierarchyTreeNodeInformation nodeInfo) {
-            hierarchyLevel = nodeInfo.getNodeID();
+            hierarchyLevel = nodeInfo.getHierarchyLevel();
 
             secretKey = null;
             publicKey = nodeInfo.getNodePublicKey();
@@ -112,6 +112,9 @@ public class HierarchyTree {
     }
 
     public HierarchyTree(HierarchyTreeInformation treeInfo) {
+        if (treeInfo == null)
+            throw new NullPointerException("HierarchyTree: HierarchyTreeInformation = null!");
+
         this.hierarchyLevels = new HashMap<>();
 
         this.minHierarchyLevel = treeInfo.getMinHierarchyLevel();
@@ -128,7 +131,7 @@ public class HierarchyTree {
             root.right = buildSubTree(treeInfo, rootInfo.getRightChildNodeID(), root);
         }
 
-        if (rootInfo.getNodeID() > 0) {
+        if (root.hierarchyLevel > 0) {
             hierarchyLevels.put(root.hierarchyLevel, root);
         }
     }
@@ -199,6 +202,9 @@ public class HierarchyTree {
 
         Node lca = findLCA(sponsorNode, masterClientNode);
 
+        if (lca == null)
+            throw new UnknownError("HierarchyTree: no least common ancestor found");
+
         updateKeysInBranch(lca);
     }
 
@@ -213,10 +219,11 @@ public class HierarchyTree {
         HierarchyTreeNodeInformation rootInfo = new HierarchyTreeNodeInformation();
 
         rootInfo.setNodeID(0);
+        rootInfo.setHierarchyLevel(root.hierarchyLevel);
         rootInfo.setParentNodeID(null);
         rootInfo.setNodePublicKey(root.publicKey);
         rootInfo.addClientsIDs(root.clientsIDs);
-        rootInfo.addResponsibilties(root.responsibility);
+        rootInfo.addResponsibilities(root.responsibility);
 
         Integer leftChildID = null;
         Integer rightChildID = null;
@@ -316,6 +323,8 @@ public class HierarchyTree {
 
         updateNodesResponsibilities(newInnerNode);
         nextLevelLeaf.responsibility.clear();
+
+        hierarchyLevels.put(client.getLevelInHierarchy(), newLeaf);
     }
 
     private void pushBack(Client client, Integer previousLevel) {
@@ -341,6 +350,9 @@ public class HierarchyTree {
 
         updateNodesResponsibilities(newInnerNode);
         newLeaf.responsibility.clear();
+
+        root = newInnerNode;
+        hierarchyLevels.put(client.getLevelInHierarchy(), newLeaf);
     }
 
     private void insertAfter(Integer previousLevel, Client client) {
@@ -368,6 +380,7 @@ public class HierarchyTree {
         }
 
         updateNodesResponsibilities(newInnerNode);
+        hierarchyLevels.put(client.getLevelInHierarchy(), newLeaf);
     }
 
     private Pair<Integer, Integer> findNeighbours(Integer hierarchyLevel) {
@@ -450,15 +463,19 @@ public class HierarchyTree {
     }
 
     private Node findLCA(Node leaf1, Node leaf2) {
-        Node p1 = leaf1;
-        Node p2 = leaf2;
+        int hierarchy1 = leaf1.hierarchyLevel;
+        int hierarchy2 = leaf2.hierarchyLevel;
 
-        while (p1 != p2) {
-            p1 = p1.parent;
-            p2 = p2.parent;
+        Node current = root;
+
+        while (current != null) {
+            if (!current.responsibility.contains(hierarchy1) || !current.responsibility.contains(hierarchy2))
+                return current.parent;
+
+            current = current.left;
         }
 
-        return p1;
+        return null;
     }
 
     private BranchInformation collectBranchInformation(Node leaf) {
@@ -469,7 +486,9 @@ public class HierarchyTree {
         while (currentNode != root) {
             int id = (currentNode.hierarchyLevel > 0) ? currentNode.hierarchyLevel : index--;
 
-            branchInfo.addNodeInfo(id, index, currentNode.publicKey);
+            int parentNodeID = (currentNode.parent == root) ? 0 : index;
+
+            branchInfo.addNodeInfo(id, parentNodeID, currentNode.publicKey);
 
             currentNode = currentNode.parent;
         }
@@ -484,8 +503,9 @@ public class HierarchyTree {
 
         nodeInfo.setNodeID(ID);
         nodeInfo.setParentNodeID(parentNodeID);
+        nodeInfo.setHierarchyLevel(node.hierarchyLevel);
         nodeInfo.setNodePublicKey(node.publicKey);
-        nodeInfo.addResponsibilties(node.responsibility);
+        nodeInfo.addResponsibilities(node.responsibility);
         nodeInfo.addClientsIDs(node.clientsIDs);
 
         Integer leftChildNodeID = null;
@@ -542,9 +562,8 @@ public class HierarchyTree {
             node.right = buildSubTree(treeInfo, nodeInfo.getRightChildNodeID(), node);
         }
 
-        if (nodeInfo.getNodeID() > 0) {
+        if (node.hierarchyLevel > 0)
             hierarchyLevels.put(node.hierarchyLevel, node);
-        }
 
         return node;
     }
