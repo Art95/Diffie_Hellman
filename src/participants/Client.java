@@ -7,20 +7,24 @@ import messages.KeysUpdateMessage;
 import util.ActionType;
 import util.Pair;
 
-import java.util.Random;
+import java.math.BigInteger;
+import java.security.*;
 
 /**
  * Created by Artem on 02.05.2016.
  */
 public class Client {
+    private static final int BITS = 512;
+    private static final int G_BOUND = 100;
+
     private int ID;
     private int levelInHierarchy;
 
-    private long p;
-    private long g;
+    private BigInteger p;
+    private BigInteger g;
 
-    private Long secretKey;
-    private Long publicKey;
+    private BigInteger secretKey;
+    private BigInteger publicKey;
 
     private HierarchyTree hierarchyTree;
     private DHTree levelTree;
@@ -31,8 +35,8 @@ public class Client {
         ID = -1;
         levelInHierarchy = -1;
 
-        p = -1;
-        g = -1;
+        p = null;
+        g = null;
 
         secretKey = null;
         publicKey = null;
@@ -55,7 +59,7 @@ public class Client {
 
         levelTree.setMasterClientData(this, secretKey, publicKey);
 
-        Pair<Long, Long> hierarchyLevelKeys = levelTree.getLevelGroupKeys();
+        Pair<BigInteger, BigInteger> hierarchyLevelKeys = levelTree.getLevelGroupKeys();
         hierarchyTree.setMasterClientHierarchyLevelData(this, hierarchyLevelKeys.getFirst(), hierarchyLevelKeys.getSecond());
 
         group = null;
@@ -81,8 +85,12 @@ public class Client {
         levelTree.clear();
         levelTree = new DHTree(this);
 
+        levelTree.setMasterClientData(this, secretKey, publicKey);
+
         hierarchyTree.clear();
         hierarchyTree = new HierarchyTree(this);
+
+        hierarchyTree.setMasterClientHierarchyLevelData(this, secretKey, publicKey);
 
         this.group = null;
     }
@@ -95,15 +103,15 @@ public class Client {
         return this.levelInHierarchy;
     }
 
-    public long getPublicKey() {
+    public BigInteger getPublicKey() {
         return this.publicKey;
     }
 
-    public long getP() {
+    public BigInteger getP() {
         return p;
     }
 
-    public long getG() {
+    public BigInteger getG() {
         return g;
     }
 
@@ -141,7 +149,7 @@ public class Client {
 
         levelTree.updateKeys();
 
-        Pair<Long, Long> hierarchyLevelKeys = levelTree.getLevelGroupKeys();
+        Pair<BigInteger, BigInteger> hierarchyLevelKeys = levelTree.getLevelGroupKeys();
         hierarchyTree.setMasterClientHierarchyLevelData(this, hierarchyLevelKeys.getFirst(), hierarchyLevelKeys.getSecond());
 
         hierarchyTree.updateKeys();
@@ -154,7 +162,7 @@ public class Client {
         if (message.levelInHierarchy == this.levelInHierarchy) {
             this.levelTree.updateKeys(message.levelTreeChanges);
 
-            Pair<Long, Long> groupKeys = levelTree.getLevelGroupKeys();
+            Pair<BigInteger, BigInteger> groupKeys = levelTree.getLevelGroupKeys();
             hierarchyTree.setMasterClientHierarchyLevelData(this, groupKeys.getFirst(), groupKeys.getSecond());
 
             hierarchyTree.updateKeys();
@@ -184,7 +192,9 @@ public class Client {
 
     @Override
     public String toString() {
-        return "(Client " + ID + ": level = " + levelInHierarchy + ", publicKey = " + publicKey + ")";
+        return "(Client " + ID + ": level = " + levelInHierarchy + ", P = " + p + ", G = " + g +
+                ", sKey = " + secretKey + ", pKey = " + publicKey +
+                ", " + levelTree + ", " + hierarchyTree + ")";
     }
 
     private void sendGroupJoinRequest(Group group) {
@@ -228,16 +238,16 @@ public class Client {
         group.receiveKeysUpdateRequest(updateMessage);
     }
 
-    private void setGroupParameters(ClientJoinAnswerMessage parameters) {
-        this.p = parameters.p;
-        this.g = parameters.g;
+    private void setGroupParameters(ClientJoinAnswerMessage answerParameters) {
+        this.p = answerParameters.p;
+        this.g = answerParameters.g;
 
         generateKeys();
 
-        if (parameters.levelInHierarchy == this.levelInHierarchy)
-            this.levelTree = new DHTree(parameters.levelTreeInfo);
+        if (answerParameters.levelInHierarchy == this.levelInHierarchy)
+            this.levelTree = new DHTree(answerParameters.levelTreeInfo);
 
-        this.hierarchyTree = new HierarchyTree(parameters.hierarchyTreeInfo);
+        this.hierarchyTree = new HierarchyTree(answerParameters.hierarchyTreeInfo);
     }
 
     private Client findJoinSponsor(Client joiningClient) {
@@ -282,19 +292,22 @@ public class Client {
     }
 
     private void generateParameters() {
-        int[] Ps = {11, 13, 17, 23, 29};
-        int[] Gs = {3, 5, 7};
-
-        Random rand = new Random();
-
-        p = Ps[rand.nextInt(Ps.length)];
-        g = Gs[rand.nextInt(Gs.length)];
+        p = BigInteger.probablePrime(BITS, new SecureRandom());
+        g = BigInteger.valueOf(new SecureRandom().nextInt(G_BOUND));
     }
 
     private void generateKeys() {
-        Random rand = new Random();
+        secretKey = randomBigIntegerInRange(p.subtract(BigInteger.ONE));
+        publicKey = g.modPow(secretKey, p);
+    }
 
-        secretKey = (long) rand.nextInt((int)p) + 2;
-        publicKey = (long) Math.pow(g, secretKey) % p;
+    private BigInteger randomBigIntegerInRange(BigInteger bound) {
+        BigInteger result;
+
+        do {
+            result = new BigInteger(bound.bitLength(), new SecureRandom()).add(BigInteger.ONE);
+        } while (result.compareTo(bound) >= 0);
+
+        return result;
     }
 }

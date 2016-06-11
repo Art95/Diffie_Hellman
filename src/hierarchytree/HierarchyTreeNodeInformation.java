@@ -1,5 +1,6 @@
 package hierarchytree;
 
+import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,7 +16,7 @@ public class HierarchyTreeNodeInformation {
     private Integer leftChildID;
     private Integer rightChildID;
 
-    private Long publicKey;
+    private BigInteger publicKey;
 
     private Set<Integer> responsibility;
     private Set<Integer> clientsIDs;
@@ -73,11 +74,11 @@ public class HierarchyTreeNodeInformation {
         this.rightChildID = rightChildID;
     }
 
-    public Long getNodePublicKey() {
+    public BigInteger getNodePublicKey() {
         return publicKey;
     }
 
-    public void setNodePublicKey(Long publicKey) {
+    public void setNodePublicKey(BigInteger publicKey) {
         this.publicKey = publicKey;
     }
 

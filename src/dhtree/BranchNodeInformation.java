@@ -1,12 +1,14 @@
 package dhtree;
 
+import java.math.BigInteger;
+
 /**
  * Created by Artem on 04.05.2016.
  */
 public class BranchNodeInformation {
     private int id;
     private int parentId;
-    private Long publicKey;
+    private BigInteger publicKey;
 
     public BranchNodeInformation() {
         id = Integer.MIN_VALUE;
@@ -14,7 +16,7 @@ public class BranchNodeInformation {
         publicKey = null;
     }
 
-    public BranchNodeInformation(int id, int parentId, long publicKey) {
+    public BranchNodeInformation(int id, int parentId, BigInteger publicKey) {
         this.id = id;
         this.parentId = parentId;
         this.publicKey = publicKey;
@@ -28,7 +30,7 @@ public class BranchNodeInformation {
         return parentId;
     }
 
-    public Long getPublicKey() {
+    public BigInteger getPublicKey() {
         return publicKey;
     }
 }

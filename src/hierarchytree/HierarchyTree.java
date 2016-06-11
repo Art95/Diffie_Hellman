@@ -5,6 +5,7 @@ import dhtree.BranchNodeInformation;
 import participants.Client;
 import util.Pair;
 
+import java.math.BigInteger;
 import java.util.*;
 
 /**
@@ -16,8 +17,8 @@ public class HierarchyTree {
 
         private Set<Integer> responsibility; // contains hierarchy levels that can be contacted using this node's secret key
 
-        private Long publicKey;
-        private Long secretKey;
+        private BigInteger publicKey;
+        private BigInteger secretKey;
 
         private Node left;
         private Node right;
@@ -91,7 +92,7 @@ public class HierarchyTree {
     private int minHierarchyLevel;
     private int maxHierarchyLevel;
 
-    private Long p, g;
+    private BigInteger p, g;
 
     public HierarchyTree() {
         root = null;
@@ -258,7 +259,7 @@ public class HierarchyTree {
         return collectBranchInformation(levelLeaf);
     }
 
-    public void setMasterClientHierarchyLevelData(Client client, Long secretKey, Long publicKey) {
+    public void setMasterClientHierarchyLevelData(Client client, BigInteger secretKey, BigInteger publicKey) {
         this.masterClientHierarchyLevel = client.getLevelInHierarchy();
 
         Node masterClientLeaf = hierarchyLevels.get(masterClientHierarchyLevel);
@@ -299,6 +300,11 @@ public class HierarchyTree {
 
         p = null;
         g = null;
+    }
+
+    @Override
+    public String toString() {
+        return "HTree: (" + root.secretKey + ", " + root.publicKey + ")";
     }
 
     private void pushFront(Client client, Integer nextLevel) {
@@ -444,8 +450,8 @@ public class HierarchyTree {
             if (left == null || right == null)
                 throw new NullPointerException("HierarchyTree: failed to update keys.");
 
-            Long secretKey = (left.secretKey != null) ? left.secretKey : right.secretKey;
-            Long publicKey = (left.secretKey != null) ? right.publicKey : left.publicKey;
+            BigInteger secretKey = (left.secretKey != null) ? left.secretKey : right.secretKey;
+            BigInteger publicKey = (left.secretKey != null) ? right.publicKey : left.publicKey;
 
             if (secretKey == null) {            // both children are nulls -> set nulls
                 currentNode.secretKey = null;
@@ -454,8 +460,8 @@ public class HierarchyTree {
                 currentNode.secretKey = secretKey;
                 currentNode.publicKey = (left.publicKey != null) ? left.publicKey : right.publicKey;
             } else {                            // both children are present -> calculate new keys
-                currentNode.secretKey = (long) Math.pow(publicKey, secretKey) % p;
-                currentNode.publicKey = (long) Math.pow(g, currentNode.secretKey) % p;
+                currentNode.secretKey = publicKey.modPow(secretKey, p);
+                currentNode.publicKey = g.modPow(currentNode.secretKey, p);
             }
 
             currentNode = currentNode.parent;

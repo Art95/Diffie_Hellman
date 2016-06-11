@@ -3,6 +3,7 @@ package dhtree;
 import participants.Client;
 import util.Pair;
 
+import java.math.BigInteger;
 import java.util.*;
 
 /**
@@ -12,8 +13,8 @@ public class DHTree {
     private class DHNode {
         private int id;
 
-        private Long secretKey;
-        private Long publicKey;
+        private BigInteger secretKey;
+        private BigInteger publicKey;
 
         private DHNode parent, left, right;
 
@@ -35,7 +36,6 @@ public class DHTree {
         public DHNode(LevelTreeNodeInformation nodeInfo) {
             id = nodeInfo.getIndex();
 
-            secretKey = null;
             publicKey = nodeInfo.getNodePublicKey();
 
             parent = null;
@@ -122,6 +122,9 @@ public class DHTree {
 
         if (rootInfo.getNodeClient() != null) {
             clientsNodes.put(rootInfo.getNodeClient(), root);
+        }
+
+        if (rootInfo.getIndex() > 0) {
             nodesClients.put(root, rootInfo.getNodeClient());
         }
     }
@@ -167,6 +170,8 @@ public class DHTree {
 
         holdingNode.clear();
 
+        cleanBranchKeys(holdingNode);
+
         --numberOfClients;
     }
     
@@ -210,6 +215,9 @@ public class DHTree {
         Map<Integer, Pair<DHNode, DHNode>> neighbours = new TreeMap<>();
 
         for (Client clnt : clientsNodes.keySet()) {
+            if (clnt.equals(client))
+                continue;
+
             DHNode node = clientsNodes.get(clnt);
 
             if ((leftHalf && node.id <= separator) || (!leftHalf && node.id > separator)) {
@@ -312,7 +320,7 @@ public class DHTree {
         return collectBranchInformation(clientNode);
     }
 
-    public void setMasterClientData(Client client, Long secretKey, Long publicKey) {
+    public void setMasterClientData(Client client, BigInteger secretKey, BigInteger publicKey) {
         this.masterClient = client;
 
         DHNode masterClientNode = clientsNodes.get(masterClient);
@@ -321,7 +329,7 @@ public class DHTree {
         masterClientNode.publicKey = publicKey;
     }
 
-    public Pair<Long, Long> getLevelGroupKeys() {
+    public Pair<BigInteger, BigInteger> getLevelGroupKeys() {
         return new Pair<>(root.secretKey, root.publicKey);
     }
 
@@ -333,6 +341,12 @@ public class DHTree {
 
         clientsNodes.clear();
         nodesClients.clear();
+    }
+
+
+    @Override
+    public String toString() {
+        return "DHTree: (" + root.secretKey + ", " + root.publicKey + ")";
     }
 
     private void collectTreeInformation(DHNode node, Integer ID, Integer parentNodeID, LevelTreeInformation treeInfo) {
@@ -379,7 +393,6 @@ public class DHTree {
             BranchNodeInformation nodeInfo = branchInfo.getNodeInformation(currentNodeInfoID);
 
             current.publicKey = nodeInfo.getPublicKey();
-
             currentNodeInfoID = nodeInfo.getParentNodeID();
             current = current.parent;
         }
@@ -547,38 +560,38 @@ public class DHTree {
             if (left == null || right == null)
                 throw new NullPointerException("DHTree: failed to update keys.");
 
-            Long secretKey = null;
-            Long publicKey = null;
+            BigInteger secretKey = (left.secretKey != null) ? left.secretKey : right.secretKey;
+            BigInteger publicKey = (left.secretKey != null) ? right.publicKey : left.publicKey;
 
-            if (left.secretKey != null) {
-                secretKey = left.secretKey;
-                publicKey = right.publicKey;
-
-                currentNode.secretKey = secretKey;
-
-                if (publicKey == null) {
-                    publicKey = left.publicKey;
-                }
-            } else if (right.secretKey != null) {
-                secretKey = right.secretKey;
-                publicKey = left.publicKey;
-
-                currentNode.secretKey = secretKey;
-
-                if (publicKey == null) {
-                    publicKey = right.publicKey;
-                }
-            }
-
-            if (secretKey == null) {
-                currentNode.secretKey = null;
+            if (secretKey == null) {            // both children are nulls -> set nulls
                 currentNode.publicKey = null;
-            } else {
-                currentNode.secretKey = (long) Math.pow(publicKey, secretKey) % masterClient.getP();
-                currentNode.publicKey = (long) Math.pow(masterClient.getG(), currentNode.secretKey) % masterClient.getP();
+                currentNode.secretKey = null;
+            } else if (publicKey == null) {     // one of children is null -> copy non null child
+                publicKey = (left.publicKey != null) ? left.publicKey : right.publicKey;
+                currentNode.publicKey = publicKey;
+                currentNode.secretKey = secretKey;
+            } else {                            // both children are present -> calculate new keys
+                secretKey = publicKey.modPow(secretKey, masterClient.getP());
+                publicKey = masterClient.getG().modPow(secretKey, masterClient.getP());
+
+                currentNode.publicKey = publicKey;
+                currentNode.secretKey = secretKey;
             }
 
             currentNode = currentNode.parent;
+        }
+    }
+
+    private void cleanBranchKeys(DHNode leaf) {
+        DHNode current = leaf.parent;
+
+        while (current != null) {
+            if (current.left.publicKey == null && current.right.publicKey == null) {
+                current.publicKey = null;
+                current.secretKey = null;
+            }
+
+            current = current.parent;
         }
     }
 
@@ -616,8 +629,11 @@ public class DHTree {
             node.right = buildSubTree(treeInfo, nodeInfo.getRightChildNodeID(), node);
         }
 
-        if (nodeInfo.getNodeID() > 0) {
+        if (nodeInfo.getNodeClient() != null) {
             clientsNodes.put(nodeInfo.getNodeClient(), node);
+        }
+
+        if (nodeInfo.getIndex() > 0) {
             nodesClients.put(node, nodeInfo.getNodeClient());
         }
 

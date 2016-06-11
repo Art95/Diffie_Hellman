@@ -2,6 +2,8 @@ package dhtree;
 
 import participants.Client;
 
+import java.math.BigInteger;
+
 /**
  * Created by Artem on 05.05.2016.
  */
@@ -12,7 +14,7 @@ public class LevelTreeNodeInformation {
     private Integer leftChildID;
     private Integer rightChildID;
 
-    private Long publicKey;
+    private BigInteger publicKey;
 
     private Client client;
 
@@ -64,11 +66,11 @@ public class LevelTreeNodeInformation {
         this.rightChildID = rightChildID;
     }
 
-    public Long getNodePublicKey() {
+    public BigInteger getNodePublicKey() {
         return publicKey;
     }
 
-    public void setNodePublicKey(Long publicKey) {
+    public void setNodePublicKey(BigInteger publicKey) {
         this.publicKey = publicKey;
     }
 

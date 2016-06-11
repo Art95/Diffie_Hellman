@@ -1,5 +1,6 @@
 package dhtree;
 
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,7 +16,7 @@ public class BranchInformation {
         branchMasterClientNodeID = Integer.MIN_VALUE;
     }
 
-    public void addNodeInfo(int id, int parentId, long publicKey) {
+    public void addNodeInfo(int id, int parentId, BigInteger publicKey) {
         if (id > 0)
             branchMasterClientNodeID = id;
 
