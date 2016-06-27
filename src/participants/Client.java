@@ -1,6 +1,6 @@
 package participants;
 
-import dhtree.DHTree;
+import dhtree.LevelTree;
 import hierarchytree.HierarchyTree;
 import messages.ClientJoinAnswerMessage;
 import messages.KeysUpdateMessage;
@@ -14,7 +14,7 @@ import java.security.*;
  * Created by Artem on 02.05.2016.
  */
 public class Client {
-    private static final int BITS = 512;
+    private static final int BITS = 256;
     private static final int G_BOUND = 100;
 
     private int ID;
@@ -27,7 +27,7 @@ public class Client {
     private BigInteger publicKey;
 
     private HierarchyTree hierarchyTree;
-    private DHTree levelTree;
+    private LevelTree levelTree;
 
     private Group group;
 
@@ -54,7 +54,7 @@ public class Client {
         generateParameters();
         generateKeys();
 
-        levelTree = new DHTree(this);
+        levelTree = new LevelTree(this);
         hierarchyTree = new HierarchyTree(this);
 
         levelTree.setMasterClientData(this, secretKey, publicKey);
@@ -65,11 +65,16 @@ public class Client {
         group = null;
     }
 
+
+    private double seconds = 0;
+
     public void joinGroup(Group group) {
         sendGroupJoinRequest(group);
 
         updateTreesStructure(this, ActionType.JOIN);
         updateKeys();
+
+        System.out.println("ID: " + ID + ". Level: " + levelInHierarchy + ". Bits: " + BITS + ". Seconds: " + seconds);
 
         sendKeysUpdateMessage(group);
 
@@ -83,7 +88,7 @@ public class Client {
         generateKeys();
 
         levelTree.clear();
-        levelTree = new DHTree(this);
+        levelTree = new LevelTree(this);
 
         levelTree.setMasterClientData(this, secretKey, publicKey);
 
@@ -127,7 +132,10 @@ public class Client {
                 levelTree.addClient(client);
             }
 
+            long start = System.nanoTime();
             hierarchyTree.addClient(client);
+            long end = System.nanoTime();
+            seconds += (end - start) / 1000000000.0;
         } else if (action == ActionType.LEAVE) {
             Client sponsor = findLeaveSponsor(client);
 
@@ -152,7 +160,10 @@ public class Client {
         Pair<BigInteger, BigInteger> hierarchyLevelKeys = levelTree.getLevelGroupKeys();
         hierarchyTree.setMasterClientHierarchyLevelData(this, hierarchyLevelKeys.getFirst(), hierarchyLevelKeys.getSecond());
 
+        long start = System.nanoTime();
         hierarchyTree.updateKeys();
+        long end = System.nanoTime();
+        seconds += (end - start) / 1000000000.0;
     }
 
     public void updateKeys(KeysUpdateMessage message) {
@@ -245,7 +256,7 @@ public class Client {
         generateKeys();
 
         if (answerParameters.levelInHierarchy == this.levelInHierarchy)
-            this.levelTree = new DHTree(answerParameters.levelTreeInfo);
+            this.levelTree = new LevelTree(answerParameters.levelTreeInfo);
 
         this.hierarchyTree = new HierarchyTree(answerParameters.hierarchyTreeInfo);
     }
@@ -293,7 +304,7 @@ public class Client {
 
     private void generateParameters() {
         p = BigInteger.probablePrime(BITS, new SecureRandom());
-        g = BigInteger.valueOf(new SecureRandom().nextInt(G_BOUND));
+        g = BigInteger.valueOf(new SecureRandom().nextInt(G_BOUND) + 2);
     }
 
     private void generateKeys() {

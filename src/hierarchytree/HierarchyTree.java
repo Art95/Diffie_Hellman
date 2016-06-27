@@ -203,8 +203,10 @@ public class HierarchyTree {
 
         Node lca = findLCA(sponsorNode, masterClientNode);
 
-        if (lca == null)
+        if (lca == null) {
+            System.out.println(this.masterClientHierarchyLevel + " " + branchInfo.getBranchMasterClientNodeID());
             throw new UnknownError("HierarchyTree: no least common ancestor found");
+        }
 
         updateKeysInBranch(lca);
     }
@@ -331,6 +333,10 @@ public class HierarchyTree {
         nextLevelLeaf.responsibility.clear();
 
         hierarchyLevels.put(client.getLevelInHierarchy(), newLeaf);
+
+        if (root.parent != null) {
+            root = root.parent;
+        }
     }
 
     private void pushBack(Client client, Integer previousLevel) {
@@ -472,16 +478,11 @@ public class HierarchyTree {
         int hierarchy1 = leaf1.hierarchyLevel;
         int hierarchy2 = leaf2.hierarchyLevel;
 
-        Node current = root;
-
-        while (current != null) {
-            if (!current.responsibility.contains(hierarchy1) || !current.responsibility.contains(hierarchy2))
-                return current.parent;
-
-            current = current.left;
+        if (hierarchy1 < hierarchy2) {
+            return leaf2.parent;
+        } else {
+            return leaf1.parent;
         }
-
-        return null;
     }
 
     private BranchInformation collectBranchInformation(Node leaf) {
@@ -490,7 +491,14 @@ public class HierarchyTree {
         int index = -1;
 
         while (currentNode != root) {
-            int id = (currentNode.hierarchyLevel > 0) ? currentNode.hierarchyLevel : index--;
+            int id = Integer.MIN_VALUE;
+
+            try {
+                id = (currentNode.hierarchyLevel > 0) ? currentNode.hierarchyLevel : index--;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                System.exit(-1010);
+            }
 
             int parentNodeID = (currentNode.parent == root) ? 0 : index;
 

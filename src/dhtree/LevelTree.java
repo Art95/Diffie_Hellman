@@ -9,18 +9,18 @@ import java.util.*;
 /**
  * Created by Artem on 03.05.2016.
  */
-public class DHTree {
-    private class DHNode {
+public class LevelTree {
+    private class Node {
         private int id;
 
         private BigInteger secretKey;
         private BigInteger publicKey;
 
-        private DHNode parent, left, right;
+        private Node parent, left, right;
 
         private Client client;
 
-        public DHNode() {
+        public Node() {
             id = -1;
 
             secretKey = null;
@@ -33,7 +33,7 @@ public class DHTree {
             client = null;
         }
 
-        public DHNode(LevelTreeNodeInformation nodeInfo) {
+        public Node(LevelTreeNodeInformation nodeInfo) {
             id = nodeInfo.getIndex();
 
             publicKey = nodeInfo.getNodePublicKey();
@@ -48,11 +48,11 @@ public class DHTree {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof DHNode)) return false;
+            if (!(o instanceof Node)) return false;
 
-            DHNode dhNode = (DHNode) o;
+            Node node = (Node) o;
 
-            return id == dhNode.id;
+            return id == node.id;
 
         }
 
@@ -73,21 +73,21 @@ public class DHTree {
         }
     }
 
-    private DHNode root;
+    private Node root;
     private int height;
 
-    private Map<DHNode, Client> nodesClients;
-    private Map<Client, DHNode> clientsNodes;
+    private Map<Node, Client> nodesClients;
+    private Map<Client, Node> clientsNodes;
 
     private int numberOfClients;
 
     private Client masterClient;
 
-    public DHTree() {
+    public LevelTree() {
         root = null;
         height = 0;
 
-        nodesClients = new TreeMap<>((Comparator<DHNode>) (node1, node2) -> node1.id - node2.id);
+        nodesClients = new TreeMap<>((Comparator<Node>) (node1, node2) -> node1.id - node2.id);
         clientsNodes = new HashMap<>();
 
         numberOfClients = 0;
@@ -95,22 +95,22 @@ public class DHTree {
         masterClient = null;
     }
 
-    public DHTree(Client client) {
+    public LevelTree(Client client) {
         initialize(client);
     }
 
-    public DHTree(LevelTreeInformation treeInfo) {
+    public LevelTree(LevelTreeInformation treeInfo) {
         if (treeInfo == null)
-            throw new NullPointerException("DHTree: LevelTreeInformation = null!");
+            throw new NullPointerException("LevelTree: LevelTreeInformation = null!");
 
         this.clientsNodes = new HashMap<>();
-        this.nodesClients = new TreeMap<>((Comparator<DHNode>) (node1, node2) -> node1.id - node2.id);
+        this.nodesClients = new TreeMap<>((Comparator<Node>) (node1, node2) -> node1.id - node2.id);
 
         this.height = treeInfo.getTreeHeight();
         this.numberOfClients = treeInfo.getNumberOfClients();
 
         LevelTreeNodeInformation rootInfo = treeInfo.getNodeInformation(0);
-        root = new DHNode(rootInfo);
+        root = new Node(rootInfo);
 
         if (rootInfo.getLeftChildNodeID() != null) {
             root.left = buildSubTree(treeInfo, rootInfo.getLeftChildNodeID(), root);
@@ -142,7 +142,7 @@ public class DHTree {
             expandTree();
         }
 
-        for (DHNode node : nodesClients.keySet()) {
+        for (Node node : nodesClients.keySet()) {
             if (nodesClients.get(node) == null) {
                 node.client = client;
 
@@ -158,12 +158,12 @@ public class DHTree {
 
     public void removeClient(Client leaving_client) {
         if (root == null)
-            throw new NullPointerException("DHTree: root = null!");
+            throw new NullPointerException("LevelTree: root = null!");
 
         if (!clientsNodes.containsKey(leaving_client))
-            throw new IllegalArgumentException("DHTree: does not contain client " + leaving_client);
+            throw new IllegalArgumentException("LevelTree: does not contain client " + leaving_client);
 
-        DHNode holdingNode = clientsNodes.get(leaving_client);
+        Node holdingNode = clientsNodes.get(leaving_client);
 
         nodesClients.put(holdingNode, null);
         clientsNodes.remove(leaving_client);
@@ -177,21 +177,21 @@ public class DHTree {
     
     public void updateKeys() {
         if (root == null)
-            throw new NullPointerException("DHTree: root = null!");
+            throw new NullPointerException("LevelTree: root = null!");
 
         if (!clientsNodes.containsKey(masterClient))
-            throw new IllegalArgumentException("DHTree: Tree does not contain client + " + masterClient);
+            throw new IllegalArgumentException("LevelTree: Tree does not contain client + " + masterClient);
 
-        DHNode clientNode = clientsNodes.get(masterClient);
+        Node clientNode = clientsNodes.get(masterClient);
 
         updateKeysInBranch(clientNode.parent);
     }
 
     public void updateKeys(BranchInformation branchInfo) {
-        DHNode sponsorNode = setChangedKeys(branchInfo);
-        DHNode masterClientNode = clientsNodes.get(masterClient);
+        Node sponsorNode = setChangedKeys(branchInfo);
+        Node masterClientNode = clientsNodes.get(masterClient);
 
-        DHNode lca = findLCA(sponsorNode, masterClientNode);
+        Node lca = findLCA(sponsorNode, masterClientNode);
 
         updateKeysInBranch(lca);
     }
@@ -207,18 +207,18 @@ public class DHTree {
 
     public Client findSiblingClient(Client client) {
         int separator = (int) Math.pow(2, height - 1) / 2;
-        DHNode clientNode = clientsNodes.get(client);
-        DHNode alternativeSibling = null;
+        Node clientNode = clientsNodes.get(client);
+        Node alternativeSibling = null;
 
         boolean leftHalf = clientNode.id <= separator;
 
-        Map<Integer, Pair<DHNode, DHNode>> neighbours = new TreeMap<>();
+        Map<Integer, Pair<Node, Node>> neighbours = new TreeMap<>();
 
         for (Client clnt : clientsNodes.keySet()) {
             if (clnt.equals(client))
                 continue;
 
-            DHNode node = clientsNodes.get(clnt);
+            Node node = clientsNodes.get(clnt);
 
             if ((leftHalf && node.id <= separator) || (!leftHalf && node.id > separator)) {
                 Integer distance = Math.abs(node.id - clientNode.id);
@@ -231,11 +231,11 @@ public class DHTree {
                 alternativeSibling = node;
         }
 
-        DHNode nearestNode = null;
+        Node nearestNode = null;
 
         if (neighbours.containsKey(1)) {
-            DHNode right = neighbours.get(1).getFirst();
-            DHNode left = neighbours.get(1).getSecond();
+            Node right = neighbours.get(1).getFirst();
+            Node left = neighbours.get(1).getSecond();
 
             if (right != null && left != null) {
                 return (right.parent == clientNode.parent) ? right.client : left.client;
@@ -245,7 +245,7 @@ public class DHTree {
         }
 
         Iterator<Integer> iterator = neighbours.keySet().iterator();
-        DHNode secondNearest = null, thirdNearest = null;
+        Node secondNearest = null, thirdNearest = null;
 
         while (iterator.hasNext() && (secondNearest == null || thirdNearest == null)) {
             Integer key = iterator.next();
@@ -254,16 +254,16 @@ public class DHTree {
             thirdNearest = (thirdNearest == null) ? neighbours.get(key).getSecond() : thirdNearest;
         }
 
-        List<DHNode> candidates = new ArrayList<>();
+        List<Node> candidates = new ArrayList<>();
         candidates.add(nearestNode);
         candidates.add(secondNearest);
         candidates.add(thirdNearest);
 
-        DHNode nearest = findNearestNode(clientNode, candidates);
+        Node nearest = findNearestNode(clientNode, candidates);
 
         if (nearest == null) {
             if (alternativeSibling == null)
-                throw new UnknownError("DHTree: Can't find sibling client");
+                throw new UnknownError("LevelTree: Can't find sibling client");
 
             return alternativeSibling.client;
         } else {
@@ -273,7 +273,7 @@ public class DHTree {
 
     public LevelTreeInformation getTreeInformation() {
         if (root == null)
-            throw new NullPointerException("DHTree: root = null!");
+            throw new NullPointerException("LevelTree: root = null!");
 
         LevelTreeInformation treeInfo = new LevelTreeInformation();
         treeInfo.setTreeHeight(this.height);
@@ -310,12 +310,12 @@ public class DHTree {
 
     public BranchInformation getBranchInformation(Client client) {
         if (root == null)
-            throw new NullPointerException("DHTree: root = null!");
+            throw new NullPointerException("LevelTree: root = null!");
 
         if (!clientsNodes.containsKey(client))
-            throw new IllegalArgumentException("DHTree: Tree does not contain client + " + client);
+            throw new IllegalArgumentException("LevelTree: Tree does not contain client + " + client);
 
-        DHNode clientNode = clientsNodes.get(client);
+        Node clientNode = clientsNodes.get(client);
 
         return collectBranchInformation(clientNode);
     }
@@ -323,7 +323,7 @@ public class DHTree {
     public void setMasterClientData(Client client, BigInteger secretKey, BigInteger publicKey) {
         this.masterClient = client;
 
-        DHNode masterClientNode = clientsNodes.get(masterClient);
+        Node masterClientNode = clientsNodes.get(masterClient);
 
         masterClientNode.secretKey = secretKey;
         masterClientNode.publicKey = publicKey;
@@ -346,10 +346,10 @@ public class DHTree {
 
     @Override
     public String toString() {
-        return "DHTree: (" + root.secretKey + ", " + root.publicKey + ")";
+        return "LevelTree: (" + root.secretKey + ", " + root.publicKey + ")";
     }
 
-    private void collectTreeInformation(DHNode node, Integer ID, Integer parentNodeID, LevelTreeInformation treeInfo) {
+    private void collectTreeInformation(Node node, Integer ID, Integer parentNodeID, LevelTreeInformation treeInfo) {
         LevelTreeNodeInformation nodeInfo = new LevelTreeNodeInformation();
 
         nodeInfo.setNodeID(ID);
@@ -377,17 +377,17 @@ public class DHTree {
         treeInfo.addNodeInformation(nodeInfo);
     }
 
-    private DHNode setChangedKeys(BranchInformation branchInfo) {
+    private Node setChangedKeys(BranchInformation branchInfo) {
         int sponsorNodeID = branchInfo.getBranchMasterClientNodeID();
-        DHNode current = null;
+        Node current = null;
         int currentNodeInfoID = sponsorNodeID;
 
-        for (DHNode node : nodesClients.keySet()) {
+        for (Node node : nodesClients.keySet()) {
             if (sponsorNodeID == node.id)
                 current = node;
         }
 
-        DHNode sponsorNode = current;
+        Node sponsorNode = current;
 
         while (current != null) {
             BranchNodeInformation nodeInfo = branchInfo.getNodeInformation(currentNodeInfoID);
@@ -400,9 +400,9 @@ public class DHTree {
         return sponsorNode;
     }
 
-    private BranchInformation collectBranchInformation(DHNode leaf) {
+    private BranchInformation collectBranchInformation(Node leaf) {
         BranchInformation branchInfo = new BranchInformation();
-        DHNode currentNode = leaf;
+        Node currentNode = leaf;
         int index = -1;
 
         while (currentNode != root) {
@@ -420,12 +420,12 @@ public class DHTree {
         return branchInfo;
     }
 
-    private int getLCALevel(DHNode leaf1, DHNode leaf2) {
+    private int getLCALevel(Node leaf1, Node leaf2) {
         if (leaf1 == null || leaf2 == null)
             return Integer.MAX_VALUE;
 
-        DHNode p1 = leaf1;
-        DHNode p2 = leaf2;
+        Node p1 = leaf1;
+        Node p2 = leaf2;
         int level = 0;
 
         while (p1 != p2) {
@@ -437,9 +437,9 @@ public class DHTree {
         return level;
     }
 
-    private DHNode findLCA(DHNode node1, DHNode node2) {
-        DHNode p1 = node1;
-        DHNode p2 = node2;
+    private Node findLCA(Node node1, Node node2) {
+        Node p1 = node1;
+        Node p2 = node2;
 
         if (p1.client == null && p2.client == null)  { // nodes are not leafs
             putPointersOnEqualHeight(p1, p2);
@@ -453,7 +453,7 @@ public class DHTree {
         return p1;
     }
 
-    private void putPointersOnEqualHeight(DHNode p1, DHNode p2) {
+    private void putPointersOnEqualHeight(Node p1, Node p2) {
         int p1_depth = findDepth(p1);
         int p2_depth = findDepth(p2);
 
@@ -466,16 +466,16 @@ public class DHTree {
             movePointerUp(p2, p2_depth - p1_depth);
     }
 
-    private int findDepth(DHNode node) {
+    private int findDepth(Node node) {
         int depth = findDepth(root, node, 0);
 
         if (depth == Integer.MAX_VALUE)
-            throw new IllegalArgumentException("DHTree: can't find depth of node " + node);
+            throw new IllegalArgumentException("LevelTree: can't find depth of node " + node);
 
         return depth;
     }
 
-    private int findDepth(DHNode currentNode, DHNode targetNode, int currentDepth) {
+    private int findDepth(Node currentNode, Node targetNode, int currentDepth) {
         if (currentNode == null)
             return Integer.MAX_VALUE;
 
@@ -488,18 +488,18 @@ public class DHTree {
         return Math.min(leftSubtreeResult, rightSubtreeResult);
     }
 
-    private void movePointerUp(DHNode p, int steps) {
+    private void movePointerUp(Node p, int steps) {
         while (steps > 0) {
             p = p.parent;
             --steps;
         }
     }
 
-    private DHNode findNearestNode(DHNode baseNode, List<DHNode> nodes) {
+    private Node findNearestNode(Node baseNode, List<Node> nodes) {
         Integer minLCALevel = Integer.MAX_VALUE;
-        DHNode nearestNode = null;
+        Node nearestNode = null;
 
-        for (DHNode node : nodes) {
+        for (Node node : nodes) {
             int lcaLevel = getLCALevel(baseNode, node);
 
             if (lcaLevel < minLCALevel) {
@@ -513,9 +513,9 @@ public class DHTree {
 
     private void expandTree() {
         if (root == null)
-            throw new NullPointerException("DHTree: root = null!");
+            throw new NullPointerException("LevelTree: root = null!");
 
-        DHNode new_root = new DHNode();
+        Node new_root = new Node();
         new_root.left = root;
         new_root.right = cloneSubTree(root);
 
@@ -526,11 +526,11 @@ public class DHTree {
         ++height;
     }
 
-    private DHNode cloneSubTree(DHNode node) {
+    private Node cloneSubTree(Node node) {
         if (node == null)
             return null;
 
-        DHNode new_node = new DHNode();
+        Node new_node = new Node();
 
         if (node.isLeaf()) {
             new_node.id = (int)(node.id + Math.pow(2, height - 1));
@@ -549,16 +549,16 @@ public class DHTree {
         return new_node;
     }
 
-    private void updateKeysInBranch(DHNode node) {
-        DHNode currentNode = node;
-        DHNode left, right;
+    private void updateKeysInBranch(Node node) {
+        Node currentNode = node;
+        Node left, right;
 
         while (currentNode != null) {
             left = currentNode.left;
             right = currentNode.right;
 
             if (left == null || right == null)
-                throw new NullPointerException("DHTree: failed to update keys.");
+                throw new NullPointerException("LevelTree: failed to update keys.");
 
             BigInteger secretKey = (left.secretKey != null) ? left.secretKey : right.secretKey;
             BigInteger publicKey = (left.secretKey != null) ? right.publicKey : left.publicKey;
@@ -582,8 +582,8 @@ public class DHTree {
         }
     }
 
-    private void cleanBranchKeys(DHNode leaf) {
-        DHNode current = leaf.parent;
+    private void cleanBranchKeys(Node leaf) {
+        Node current = leaf.parent;
 
         while (current != null) {
             if (current.left.publicKey == null && current.right.publicKey == null) {
@@ -596,7 +596,7 @@ public class DHTree {
     }
 
     private void initialize(Client client) {
-        root = new DHNode();
+        root = new Node();
 
         root.id = 1;
         root.publicKey = client.getPublicKey();
@@ -604,7 +604,7 @@ public class DHTree {
 
         height = 1;
 
-        nodesClients = new TreeMap<>((Comparator<DHNode>) (node1, node2) -> node1.id - node2.id);
+        nodesClients = new TreeMap<>((Comparator<Node>) (node1, node2) -> node1.id - node2.id);
         nodesClients.put(root, client);
 
         clientsNodes = new HashMap<>();
@@ -615,10 +615,10 @@ public class DHTree {
         masterClient = client;
     }
 
-    private DHNode buildSubTree(LevelTreeInformation treeInfo, Integer currentID, DHNode parent) {
+    private Node buildSubTree(LevelTreeInformation treeInfo, Integer currentID, Node parent) {
         LevelTreeNodeInformation nodeInfo = treeInfo.getNodeInformation(currentID);
 
-        DHNode node = new DHNode(nodeInfo);
+        Node node = new Node(nodeInfo);
         node.parent = parent;
 
         if (nodeInfo.getLeftChildNodeID() != null) {

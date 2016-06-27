@@ -45,4 +45,8 @@ public class Group {
             client.updateKeys(message);
         }
     }
+
+    public void clear() {
+        clients.clear();
+    }
 }
