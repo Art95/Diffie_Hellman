@@ -1,6 +1,6 @@
 package messages;
 
-import dhtree.BranchInformation;
+import leveltree.BranchInformation;
 
 /**
  * Created by Artem on 02.05.2016.

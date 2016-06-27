@@ -1,4 +1,4 @@
-package dhtree;
+package leveltree;
 
 import java.math.BigInteger;
 

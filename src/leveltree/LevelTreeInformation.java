@@ -1,4 +1,4 @@
-package dhtree;
+package leveltree;
 
 import java.util.HashMap;
 import java.util.Map;

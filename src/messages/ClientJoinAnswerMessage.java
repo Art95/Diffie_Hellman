@@ -1,6 +1,6 @@
 package messages;
 
-import dhtree.LevelTreeInformation;
+import leveltree.LevelTreeInformation;
 import hierarchytree.HierarchyTreeInformation;
 
 import java.math.BigInteger;

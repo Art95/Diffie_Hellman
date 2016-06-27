@@ -1,7 +1,7 @@
 package hierarchytree;
 
-import dhtree.BranchInformation;
-import dhtree.BranchNodeInformation;
+import leveltree.BranchInformation;
+import leveltree.BranchNodeInformation;
 import participants.Client;
 import util.Pair;
 

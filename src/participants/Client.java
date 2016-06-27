@@ -1,6 +1,6 @@
 package participants;
 
-import dhtree.LevelTree;
+import leveltree.LevelTree;
 import hierarchytree.HierarchyTree;
 import messages.ClientJoinAnswerMessage;
 import messages.KeysUpdateMessage;
